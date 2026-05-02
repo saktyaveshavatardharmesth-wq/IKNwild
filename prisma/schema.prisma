@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FOREST_RANGER
+  CONSTRUCTION_WORKER
+}
+
+enum ReportStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  role      Role
+  code      String   @unique
+  reports   Report[] @relation("Reporter")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Report {
+  id          String         @id @default(cuid())
+  description String
+  animalType  String
+  imageUrl    String?
+  latitude    Float
+  longitude   Float
+  address     String
+  status      ReportStatus   @default(PENDING)
+  reporterId  String
+  reporter    User           @relation("Reporter", fields: [reporterId], references: [id])
+  history     StatusUpdate[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model StatusUpdate {
+  id        String       @id @default(cuid())
+  reportId  String
+  report    Report       @relation(fields: [reportId], references: [id])
+  status    ReportStatus
+  updatedBy String // User ID who made the update
+  createdAt DateTime     @default(now())
+}
