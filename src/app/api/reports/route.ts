@@ -1,22 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// GET /api/reports - List reports
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
     const userId = searchParams.get("userId");
-
     let where = {};
-    
-    // If it's a construction worker, they only see their own reports (per flow description)
-    // Actually flow says "View report history", usually means their own.
-    // Forest Ranger sees all.
     if (role === "CONSTRUCTION_WORKER" && userId) {
       where = { reporterId: userId };
     }
-
     const reports = await prisma.report.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -26,7 +19,6 @@ export async function GET(request: Request) {
         },
       },
     });
-
     return NextResponse.json(reports);
   } catch (error) {
     console.error("Fetch reports error:", error);
@@ -34,7 +26,6 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/reports - Create a report
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -46,6 +37,7 @@ export async function POST(request: Request) {
       longitude,
       address,
       reporterId,
+      notes,
     } = body;
 
     if (!description || !animalType || !latitude || !longitude || !reporterId) {
@@ -64,11 +56,11 @@ export async function POST(request: Request) {
         longitude,
         address,
         reporterId,
+        notes,
         status: "PENDING",
       },
     });
 
-    // Create initial status history
     await prisma.statusUpdate.create({
       data: {
         reportId: report.id,

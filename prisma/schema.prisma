@@ -37,6 +37,7 @@ model Report {
   description String
   animalType  String
   imageUrl    String?
+  notes       String?
   latitude    Float
   longitude   Float
   address     String
