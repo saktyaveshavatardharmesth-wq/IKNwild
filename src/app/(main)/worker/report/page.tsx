@@ -27,7 +27,7 @@ export default function ReportForm() {
     description: "",
     latitude: 0,
     longitude: 0,
-    address: "Fetching location...",
+    address: "",
     imageUrl: "",
     notes: "",
     reporterName: "",
@@ -48,11 +48,11 @@ export default function ReportForm() {
             ...prev,
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-            address: `IKN Area - Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`,
+            address: prev.address || `IKN Area - Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`,
           }));
         },
         () => {
-          setFormData((prev) => ({ ...prev, address: "Location access denied" }));
+          console.log("Geolocation access denied");
         }
       );
     }
@@ -86,6 +86,11 @@ export default function ReportForm() {
     e.preventDefault();
     if (!user) return;
 
+    if (!formData.description.trim()) {
+      alert("Mohon isi deskripsi temuan.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch("/api/reports", {
@@ -93,6 +98,7 @@ export default function ReportForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          description: formData.description.trim(),
           reporterId: user.id,
           mapX: mapLocation?.px,
           mapY: mapLocation?.py,
@@ -146,10 +152,10 @@ export default function ReportForm() {
         {/* Deskripsi */}
         <div className="bg-white rounded-2xl p-4">
           <label className="block text-lg text-neutral-1000 font-bold mb-1">Deskripsi Temuan</label>
-          <input
-            type="text"
+          <textarea
             required
-            className="w-full outline-none text-gray-900 placeholder:text-gray-300"
+            className="w-full outline-none text-gray-900 placeholder:text-gray-300 resize-none"
+            rows={3}
             placeholder="e.g. Hewan masuk ke dalam alat berat"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -184,17 +190,51 @@ export default function ReportForm() {
             Tandai Lokasi di Peta
           </label>
           <div className="rounded-xl overflow-hidden mb-2">
-  <MapPicker
-    onLocationSelect={(loc) => setMapLocation(loc)}
-    selectedPx={mapLocation?.px}
-    selectedPy={mapLocation?.py}
-  />
-</div>
-          <div className="flex items-center gap-1 text-sm text-gray-600 mt-2">
-            <MapPin className="h-4 w-4" />
-            <span>Lokasi</span>
+            <MapPicker
+              onLocationSelect={(loc) => setMapLocation(loc)}
+              selectedPx={mapLocation?.px}
+              selectedPy={mapLocation?.py}
+            />
           </div>
-          <p className="text-sm font-bold text-gray-900">{formData.address}</p>
+
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-neutral-1000 mb-1">Latitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  className="w-full bg-gray-50 rounded-xl p-3 outline-none text-gray-900 border border-gray-100"
+                  placeholder="-0.9123"
+                  value={formData.latitude}
+                  onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-neutral-1000 mb-1">Longitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  className="w-full bg-gray-50 rounded-xl p-3 outline-none text-gray-900 border border-gray-100"
+                  placeholder="116.7891"
+                  value={formData.longitude}
+                  onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-neutral-1000 mb-1">Alamat / Detail Lokasi</label>
+              <textarea
+                rows={2}
+                required
+                className="w-full bg-gray-50 rounded-xl p-3 outline-none text-gray-900 border border-gray-100 resize-none"
+                placeholder="e.g. Dekat mess pekerja zone A"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Upload Foto */}

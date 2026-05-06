@@ -4,21 +4,26 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MapPin, User, Clock, CheckCircle2, AlertCircle, Phone } from "lucide-react";
 
-export default function RangerReportDetail({ params }: { params: { id: string } }) {
+export default function RangerReportDetail({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [report, setReport] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [reportId, setReportId] = useState<string>("");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) setUser(JSON.parse(storedUser));
-    fetchReport();
+    
+    params.then((p) => {
+      setReportId(p.id);
+    });
   }, []);
 
   const fetchReport = async () => {
+    if (!reportId) return;
     try {
-      const res = await fetch(`/api/reports/${params.id}`);
+      const res = await fetch(`/api/reports/${reportId}`);
       const data = await res.json();
       setReport(data);
     } catch (err) {
@@ -28,10 +33,14 @@ export default function RangerReportDetail({ params }: { params: { id: string } 
     }
   };
 
+  useEffect(() => {
+    if (reportId) fetchReport();
+  }, [reportId]);
+
   const updateStatus = async (status: string) => {
-    if (!user) return;
+    if (!user || !reportId) return;
     try {
-      await fetch(`/api/reports/${params.id}`, {
+      await fetch(`/api/reports/${reportId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, updatedBy: user.id }),
@@ -116,18 +125,33 @@ export default function RangerReportDetail({ params }: { params: { id: string } 
           <div className="overflow-hidden rounded-3xl border bg-white shadow-sm">
             <div className="bg-slate-50 p-4 font-bold text-slate-700 flex items-center gap-2">
               <MapPin className="h-5 w-5 text-red-500" />
-              Sighting Location (5m Radius)
+              Sighting Location (SVG Map)
             </div>
-            <div className="relative h-64 bg-slate-200 flex items-center justify-center">
-              {/* Mock Map with Pinpoint */}
-              <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/116.789,-0.912,15/600x400?access_token=pk.placeholder')] bg-cover bg-center"></div>
-              <div className="relative">
-                <div className="absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-red-500 bg-red-500/20"></div>
-                <AlertCircle className="h-8 w-8 text-red-600 drop-shadow-lg" />
-              </div>
+            <div className="relative w-full aspect-[390/398] bg-[#A8D4E8] flex items-center justify-center">
+              <img src="/map.svg" className="w-full h-full block object-contain" alt="IKN Map" />
+              {report.px !== undefined && report.py !== undefined && (
+                <div 
+                  className="absolute"
+                  style={{
+                    left: `${report.px}%`,
+                    top: `${report.py}%`,
+                    transform: "translate(-50%, -100%)",
+                  }}
+                >
+                  <div className="relative">
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 h-16 w-16 -translate-y-full rounded-full border-2 border-red-500 bg-red-500/20 animate-pulse"></div>
+                    <AlertCircle className="h-8 w-8 text-red-600 drop-shadow-lg" />
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="p-4 text-sm text-slate-500">
+            <div className="p-4 text-sm text-slate-500 border-t">
               {report.address}
+              {report.latitude && report.longitude && (
+                <p className="mt-1 text-xs text-slate-400">
+                  GPS: {report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}
+                </p>
+              )}
             </div>
           </div>
 

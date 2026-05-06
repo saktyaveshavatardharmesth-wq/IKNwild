@@ -37,14 +37,25 @@ export async function POST(request: Request) {
       longitude,
       address,
       reporterId,
+      reporterName,
       notes,
+      mapX,
+      mapY,
     } = body;
 
-    if (!description || !animalType || !latitude || !longitude || !reporterId) {
+    if (!description || !animalType || !reporterId) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields (description, animalType, or reporterId)" },
         { status: 400 }
       );
+    }
+
+    // Update reporter name if provided
+    if (reporterName) {
+      await prisma.user.update({
+        where: { id: reporterId },
+        data: { name: reporterName },
+      });
     }
 
     const report = await prisma.report.create({
@@ -57,6 +68,8 @@ export async function POST(request: Request) {
         address,
         reporterId,
         notes,
+        px: mapX,
+        py: mapY,
         status: "PENDING",
       },
     });

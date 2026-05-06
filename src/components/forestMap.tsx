@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { motion } from "framer-motion";
+import { ZoomIn, ZoomOut, Move } from "lucide-react";
 
 interface Report {
   id: string;
@@ -17,94 +19,107 @@ interface Props {
   onSelectReport: (report: Report) => void;
 }
 
-// Koordinat fallback — kalibrasi sesuai SVG kamu
-const FALLBACK_COORDS = [
-  { px: 42, py: 38 },
-  { px: 65, py: 55 },
-  { px: 28, py: 68 },
-  { px: 55, py: 30 },
-  { px: 75, py: 72 },
-];
-
 export default function ForestMap({ reports, onSelectReport }: Props) {
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
   const pending = reports.filter(r => r.status === "PENDING");
 
+  const zoomIn = () => setScale(prev => Math.min(prev + 0.5, 4));
+  const zoomOut = () => setScale(prev => Math.max(prev - 0.5, 1));
+  const resetZoom = () => setScale(1);
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden">
-      <div className="px-4 pt-3 pb-2">
-        <p className="font-bold text-gray-700">Peta Interaktif</p>
-        <p className="text-xs text-gray-400">Tap pin untuk lihat detail laporan</p>
+    <div className="bg-white rounded-2xl shadow-inner border border-gray-100 flex flex-col items-center h-full overflow-hidden relative">
+      {/* Controls Overlay */}
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+        <button 
+          onClick={zoomIn}
+          className="p-1.5 bg-white/80 backdrop-blur shadow-sm rounded-lg hover:bg-white transition-colors border border-gray-100"
+        >
+          <ZoomIn className="h-4 w-4 text-gray-600" />
+        </button>
+        <button 
+          onClick={zoomOut}
+          className="p-1.5 bg-white/80 backdrop-blur shadow-sm rounded-lg hover:bg-white transition-colors border border-gray-100"
+        >
+          <ZoomOut className="h-4 w-4 text-gray-600" />
+        </button>
+        <button 
+          onClick={resetZoom}
+          className="p-1.5 bg-white/80 backdrop-blur shadow-sm rounded-lg hover:bg-white transition-colors border border-gray-100"
+        >
+          <span className="text-[8px] font-black text-gray-600 px-0.5">1:1</span>
+        </button>
       </div>
 
       {/* MAP AREA */}
       <div
-        className="relative w-full"
-        onClick={() => setActiveId(null)}
+        ref={containerRef}
+        className="relative w-full h-full bg-slate-50 overflow-hidden"
       >
-            <img src="/map.svg" className="w-full block" />
-        <div className="w-full aspect-[4/3] bg-green-100 flex items-center justify-center">
-          <p className="text-gray-400 text-sm">SVG Map IKN kamu masuk di sini</p>
-        </div>
-        {/* ============================================= */}
+        <motion.div
+          drag
+          dragConstraints={containerRef}
+          style={{ 
+            scale,
+            width: "100%",
+            height: "100%",
+            cursor: scale > 1 ? "grab" : "default"
+          }}
+          className="relative"
+        >
+          <img 
+            src="/map.svg" 
+            className="w-full h-full block pointer-events-none" 
+            alt="IKN Map" 
+            draggable={false}
+          />
 
-        {/* PINS */}
-        {pending.map((report, i) => {
-          const coord = FALLBACK_COORDS[i % FALLBACK_COORDS.length];
-          const px = report.px ?? coord.px;
-          const py = report.py ?? coord.py;
-          const isActive = activeId === report.id;
+          {/* PINS */}
+          {pending.map((report) => {
+            if (report.px === undefined || report.py === undefined || report.px === null || report.py === null) return null;
 
-          return (
-            <div
-              key={report.id}
-              className="absolute"
-              style={{
-                left: `${px}%`,
-                top: `${py}%`,
-                transform: "translate(-50%, -100%)",
-                zIndex: isActive ? 20 : 5,
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                setActiveId(isActive ? null : report.id);
-              }}
-            >
-              {/* Popup */}
-              {isActive && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-44 bg-white rounded-xl border border-gray-200 p-3 shadow-md pointer-events-none">
-                  <p className="text-xs font-semibold text-gray-900 leading-snug mb-1">
-                    {report.description}
-                  </p>
-                  <p className="text-[10px] text-gray-500">🐾 {report.animalType}</p>
-                  <p className="text-[10px] text-gray-500">📍 {report.address}</p>
-                  <button
-                    className="mt-2 w-full bg-red-500 text-white text-[10px] font-bold py-1.5 rounded-lg pointer-events-auto"
-                    onClick={e => { e.stopPropagation(); onSelectReport(report); }}
-                  >
-                    Selengkapnya →
-                  </button>
+            const px = report.px;
+            const py = report.py;
+
+            return (
+              <div
+                key={report.id}
+                className="absolute"
+                style={{
+                  left: `${px}%`,
+                  top: `${py}%`,
+                  transform: `translate(-50%, -100%) scale(${1/scale})`,
+                  transformOrigin: "bottom center",
+                  zIndex: 5,
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  onSelectReport(report);
+                }}
+              >
+                {/* Pin */}
+                <div className="transition-all duration-300 hover:scale-125 origin-bottom cursor-pointer drop-shadow-lg">
+                  <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+                    <path d="M16 0C7.163 0 0 7.163 0 16c0 11.25 16 24 16 24s16-12.75 16-24c0-8.837-7.163-16-16-16z" fill="#EF4444"/>
+                    <circle cx="16" cy="16" r="6" fill="white"/>
+                  </svg>
                 </div>
-              )}
-
-              {/* Pin */}
-              <div className={`transition-transform ${isActive ? "scale-125" : "hover:scale-110"} origin-bottom cursor-pointer`}>
-                <svg width="28" height="34" viewBox="0 0 28 34" fill="none">
-                  <path d="M14 0C7.373 0 2 5.373 2 12c0 8.5 12 22 12 22s12-13.5 12-22C26 5.373 20.627 0 14 0z" fill="#EF4444"/>
-                  <path d="M14 0C7.373 0 2 5.373 2 12c0 8.5 12 22 12 22s12-13.5 12-22C26 5.373 20.627 0 14 0z" stroke="white" strokeWidth="1.5" fill="none"/>
-                  <text x="14" y="14" textAnchor="middle" dominantBaseline="central" fill="white" fontSize="9" fontWeight="bold" fontFamily="sans-serif">
-                    #{i + 1}
-                  </text>
-                </svg>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </motion.div>
+
+        {scale > 1 && (
+          <div className="absolute bottom-2 left-2 pointer-events-none bg-black/20 rounded-full p-1 z-10">
+            <Move className="h-4 w-4 text-white opacity-50" />
+          </div>
+        )}
       </div>
 
-      <div className="px-4 py-2 flex items-center gap-2 border-t border-gray-100">
-        <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
-        <span className="text-xs text-gray-400">Laporan belum ditangani</span>
+      <div className="w-full px-4 py-3 flex items-center gap-2 bg-gray-50 border-t border-gray-100 z-10">
+        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Laporan Belum Ditangani</span>
       </div>
     </div>
   );

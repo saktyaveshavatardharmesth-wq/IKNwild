@@ -38,8 +38,10 @@ model Report {
   animalType  String
   imageUrl    String?
   notes       String?
-  latitude    Float
-  longitude   Float
+  latitude    Float?
+  longitude   Float?
+  px          Float? // Horizontal position on SVG map (%)
+  py          Float? // Vertical position on SVG map (%)
   address     String
   status      ReportStatus   @default(PENDING)
   reporterId  String
